@@ -901,11 +901,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
   speed: 5
-  maxHp: 100
-  bulletSpeed: 10
-  healthText: {fileID: 0}
-  healthBar: {fileID: 8929435355516359097}
-  worldHpText: {fileID: 3100248001303939317}
+  slimeSpeed: 10
 --- !u!114 &6608491471319652198
 MonoBehaviour:
   m_ObjectHideFlags: 0

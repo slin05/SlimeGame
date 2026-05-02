@@ -10,7 +10,7 @@ public class CameraFollow : MonoBehaviour
     {
         if (target == null)
         {
-            foreach (var pv in FindObjectsOfType<PhotonView>())
+            foreach (var pv in FindObjectsByType<PhotonView>(FindObjectsSortMode.None))
             {
                 if (pv.IsMine && pv.CompareTag("Player"))
                 {

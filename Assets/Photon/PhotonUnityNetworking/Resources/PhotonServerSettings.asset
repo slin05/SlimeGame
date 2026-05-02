@@ -45,6 +45,8 @@ MonoBehaviour:
   - RPC_ShowCombatMessage
   - RPC_GameOver
   - RPC_PlayerDied
+  - RPC_SlimeAdded
+  - RPC_SyncTimer
   DisableAutoOpenWizard: 1
   ShowSettings: 0
   DevRegionSetOnce: 1

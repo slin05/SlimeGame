@@ -1,6 +1,5 @@
 using UnityEngine;
 using Photon.Pun;
-using TMPro;
 
 public class SpawnPlayers : MonoBehaviourPunCallbacks
 {
@@ -10,12 +9,10 @@ public class SpawnPlayers : MonoBehaviourPunCallbacks
     public float z;
     public float y;
 
-    void OnEnable()
+    public override void OnEnable()
     {
         if (PhotonNetwork.InRoom)
-        {
             SpawnPlayer();
-        }
     }
 
     public override void OnJoinedRoom()
@@ -26,16 +23,7 @@ public class SpawnPlayers : MonoBehaviourPunCallbacks
     private void SpawnPlayer()
     {
         if (playerPrefab == null) return;
-
         float x = Random.Range(minX, maxX);
-        Vector3 spawnPosition = new Vector3(x, y, z);
-        GameObject player = PhotonNetwork.Instantiate(playerPrefab.name, spawnPosition, Quaternion.identity);
-
-        TextMeshProUGUI healthUI = GameObject.Find("HealthText").GetComponent<TextMeshProUGUI>();
-        PlayerController playerController = player.GetComponent<PlayerController>();
-        if (playerController != null && healthUI != null)
-        {
-            playerController.healthText = healthUI;
-        }
+        PhotonNetwork.Instantiate(playerPrefab.name, new Vector3(x, y, z), Quaternion.identity);
     }
 }

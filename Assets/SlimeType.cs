@@ -1,0 +1,1 @@
+public enum SlimeType { Red, Green, Blue, Yellow }

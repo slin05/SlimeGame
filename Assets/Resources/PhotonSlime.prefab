@@ -16,8 +16,8 @@ GameObject:
   - component: {fileID: 841415548643455114}
   - component: {fileID: 7737474995168570589}
   m_Layer: 0
-  m_Name: PhotonBullet
-  m_TagString: Bullet
+  m_Name: PhotonSlime
+  m_TagString: Slime
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -177,3 +177,4 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Bullet
   lifetime: 3
+  slimeType: 0

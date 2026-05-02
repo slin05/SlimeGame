@@ -1,44 +1,24 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
-using Photon.Pun;
-using Photon.Realtime;
 using TMPro;
-using ExitGames.Client.Photon;
+using Photon.Pun;
 
 public class PlayerController : MonoBehaviourPunCallbacks
 {
     public float speed = 5f;
-    public int maxHp = 100;
-    public float bulletSpeed = 10f;
-    public TextMeshProUGUI healthText;
+    public float slimeSpeed = 10f;
 
-    [Header("World-Space Health Bar")]
-    public Slider healthBar;
+    private SlimeType currentSlimeType = SlimeType.Red;
+    private TextMeshProUGUI slimeIndicatorText;
 
-    [Header("Complexity Feature: World-Space HP Number")]
-    public TextMeshProUGUI worldHpText;
-
-    private int currentHp;
+    private static readonly Color[] slimeColors = { Color.red, Color.green, Color.blue, Color.yellow };
+    private int slimeCount => System.Enum.GetValues(typeof(SlimeType)).Length;
 
     void Start()
     {
-        currentHp = maxHp;
-
-        if (healthBar != null)
-        {
-            healthBar.maxValue = maxHp;
-            healthBar.value = maxHp;
-        }
-
-        if (photonView.IsMine) UpdateHealthUI();
-
-        UpdateWorldHpText();
-
-        if (photonView.IsMine)
-        {
-            Hashtable props = new Hashtable { { "hp", currentHp } };
-            PhotonNetwork.LocalPlayer.SetCustomProperties(props);
-        }
+        if (!photonView.IsMine) return;
+        BuildSlimeIndicator();
+        UpdateSlimeIndicator();
     }
 
     void Update()
@@ -49,129 +29,69 @@ public class PlayerController : MonoBehaviourPunCallbacks
         float v = Input.GetAxis("Vertical");
         transform.position += new Vector3(h, 0, v) * speed * Time.deltaTime;
 
-        if (Input.GetMouseButtonDown(0)) Shoot();
+        if (Input.GetKeyDown(KeyCode.Q))
+        {
+            currentSlimeType = (SlimeType)(((int)currentSlimeType - 1 + slimeCount) % slimeCount);
+            UpdateSlimeIndicator();
+        }
+
+        if (Input.GetKeyDown(KeyCode.E))
+        {
+            currentSlimeType = (SlimeType)(((int)currentSlimeType + 1) % slimeCount);
+            UpdateSlimeIndicator();
+        }
+
+        if (Input.GetMouseButtonDown(0)) ThrowSlime();
     }
 
-    void Shoot()
+    void ThrowSlime()
     {
         Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
         Vector3 targetPoint = ray.GetPoint(10f);
         Vector3 direction = (targetPoint - transform.position).normalized;
 
-        GameObject bullet = PhotonNetwork.Instantiate("PhotonBullet",
-                                                       transform.position,
-                                                       Quaternion.identity);
-        bullet.GetComponent<Rigidbody>().linearVelocity = direction * bulletSpeed;
+        object[] data = new object[] { (int)currentSlimeType };
+        GameObject slimeObj = PhotonNetwork.Instantiate("PhotonSlime", transform.position, Quaternion.identity, 0, data);
+        slimeObj.GetComponent<Rigidbody>().linearVelocity = direction * slimeSpeed;
     }
 
-    void OnCollisionEnter(Collision collision)
+    void BuildSlimeIndicator()
     {
-        if (!photonView.IsMine) return;
+        GameObject canvasGO = new GameObject("SlimeIndicatorCanvas");
+        Canvas canvas = canvasGO.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 10;
+        CanvasScaler scaler = canvasGO.AddComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920, 1080);
 
-        if (!collision.gameObject.CompareTag("Bullet")) return;
+        GameObject bg = new GameObject("IndicatorBG");
+        bg.transform.SetParent(canvas.transform, false);
+        UnityEngine.UI.Image img = bg.AddComponent<UnityEngine.UI.Image>();
+        img.color = new Color(0f, 0f, 0f, 0.6f);
+        RectTransform bgRT = bg.GetComponent<RectTransform>();
+        bgRT.anchorMin = new Vector2(0.5f, 0f);
+        bgRT.anchorMax = new Vector2(0.5f, 0f);
+        bgRT.pivot = new Vector2(0.5f, 0f);
+        bgRT.anchoredPosition = new Vector2(0f, 20f);
+        bgRT.sizeDelta = new Vector2(220f, 40f);
 
-        PhotonView bulletPV = collision.gameObject.GetComponent<PhotonView>();
-
-        if (bulletPV == null || bulletPV.IsMine) return;
-
-        string attackerName = bulletPV.Owner.NickName;
-        int attackerActorNum = bulletPV.Owner.ActorNumber;
-
-        string victimName = PhotonNetwork.LocalPlayer.NickName;
-        int victimActorNum = PhotonNetwork.LocalPlayer.ActorNumber;
-
-        if (GameSceneManager.Instance != null)
-        {
-            GameSceneManager.Instance.BroadcastHitMessage(
-                attackerName, victimName,
-                attackerActorNum, victimActorNum,
-                20);
-        }
-
-        photonView.RPC(nameof(TakeDamage), RpcTarget.AllBuffered,
-                       20, attackerActorNum, attackerName);
+        GameObject textGO = new GameObject("SlimeText");
+        textGO.transform.SetParent(bg.transform, false);
+        slimeIndicatorText = textGO.AddComponent<TextMeshProUGUI>();
+        slimeIndicatorText.fontSize = 18f;
+        slimeIndicatorText.alignment = TextAlignmentOptions.Center;
+        RectTransform textRT = textGO.GetComponent<RectTransform>();
+        textRT.anchorMin = Vector2.zero;
+        textRT.anchorMax = Vector2.one;
+        textRT.offsetMin = Vector2.zero;
+        textRT.offsetMax = Vector2.zero;
     }
 
-    [PunRPC]
-    void TakeDamage(int damage, int attackerActorNumber, string attackerName)
+    void UpdateSlimeIndicator()
     {
-        currentHp -= damage;
-
-        if (photonView.IsMine)
-        {
-            Hashtable props = new Hashtable { { "hp", currentHp } };
-            PhotonNetwork.LocalPlayer.SetCustomProperties(props);
-            UpdateHealthUI();
-        }
-
-        if (healthBar != null) healthBar.value = currentHp;
-        UpdateWorldHpText();
-
-        if (currentHp <= 0)
-            Die(attackerActorNumber, attackerName);
-    }
-
-    public override void OnPlayerPropertiesUpdate(Player targetPlayer, Hashtable changedProps)
-    {
-        if (targetPlayer != photonView.Owner) return;
-
-        if (changedProps.ContainsKey("hp"))
-        {
-            currentHp = (int)changedProps["hp"];
-
-            if (healthBar != null) healthBar.value = currentHp;
-
-            UpdateWorldHpText();
-
-            if (photonView.IsMine) UpdateHealthUI();
-        }
-    }
-
-    void Die(int attackerActorNumber, string attackerName)
-    {
-        if (!photonView.IsMine) return;
-
-        string victimName = PhotonNetwork.LocalPlayer.NickName;
-        int victimActorNum = PhotonNetwork.LocalPlayer.ActorNumber;
-
-        if (GameSceneManager.Instance != null)
-        {
-            GameSceneManager.Instance.BroadcastKillMessage(
-                attackerName, victimName,
-                attackerActorNumber, victimActorNum);
-
-            GameSceneManager.Instance.photonView.RPC(
-                nameof(GameSceneManager.RPC_PlayerDied),
-                RpcTarget.MasterClient,
-                victimActorNum);
-        }
-
-        photonView.RPC(nameof(HandleDeath), RpcTarget.AllBuffered);
-    }
-
-    [PunRPC]
-    void HandleDeath()
-    {
-        GetComponent<Renderer>().enabled = false;
-        GetComponent<Collider>().enabled = false;
-    }
-
-    [PunRPC]
-    void HandleRespawn()
-    {
-        GetComponent<Renderer>().enabled = true;
-        GetComponent<Collider>().enabled = true;
-    }
-
-    void UpdateHealthUI()
-    {
-        if (healthText != null)
-            healthText.text = "HP: " + currentHp;
-    }
-
-    void UpdateWorldHpText()
-    {
-        if (worldHpText != null)
-            worldHpText.text = currentHp + " / " + maxHp;
+        if (slimeIndicatorText == null) return;
+        slimeIndicatorText.text = $"[Q] ◀  {currentSlimeType} Slime  ▶ [E]";
+        slimeIndicatorText.color = slimeColors[(int)currentSlimeType];
     }
 }
